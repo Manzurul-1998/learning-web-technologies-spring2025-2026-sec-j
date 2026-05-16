@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Web Technologies – Mini Project</title>
+</head>
+<body>
+
+<!-- ==================== PAGE: REGISTER ==================== -->
+<div id="page-register">
+  <fieldset>
+    <legend><b>REGISTRATION</b></legend>
+    Id<br>
+    <input type="text" id="reg-id"><br><br>
+    Password<br>
+    <input type="password" id="reg-pass"><br><br>
+    Confirm Password<br>
+    <input type="password" id="reg-confirm"><br><br>
+    Name<br>
+    <input type="text" id="reg-name"><br><br>
+    User Type<br>
+    <hr>
+    <input type="radio" name="reg-type" value="User" checked> User &nbsp;
+    <input type="radio" name="reg-type" value="Admin"> Admin
+    <hr>
+    <br>
+    <input type="button" value="Sign Up" onclick="doRegister()">
+    <input type="button" value="Sign In" onclick="showPage('page-login')">
+    <br><br>
+    <span id="reg-msg" style="color:red;"></span>
+  </fieldset>
+</div>
+
+<!-- ==================== PAGE: LOGIN ==================== -->
+<div id="page-login" style="display:none;">
+  <fieldset>
+    <legend><b>LOGIN</b></legend>
+    User Id<br>
+    <input type="text" id="login-id"><br><br>
+    Password<br>
+    <input type="password" id="login-pass"><br><br>
+    <input type="button" value="Login" onclick="doLogin()">
+    <input type="button" value="Register" onclick="showPage('page-register')">
+    <br><br>
+    <span id="login-msg" style="color:red;"></span>
+  </fieldset>
+</div>
+
+<!-- ==================== PAGE: ADMIN HOME ==================== -->
+<div id="page-admin-home" style="display:none;">
+  <h2 id="admin-welcome"></h2>
+  <br>
+  <a href="#" onclick="showPage('page-profile')">Profile</a><br>
+  <a href="#" onclick="showPage('page-change-pass')">Change Password</a><br>
+  <a href="#" onclick="showPage('page-view-users')">View Users</a><br>
+  <a href="#" onclick="doLogout()">Logout</a>
+</div>
+
+<!-- ==================== PAGE: USER HOME ==================== -->
+<div id="page-user-home" style="display:none;">
+  <h2 id="user-welcome"></h2>
+  <br>
+  <a href="#" onclick="showPage('page-profile')">Profile</a><br>
+  <a href="#" onclick="showPage('page-change-pass')">Change Password</a><br>
+  <a href="#" onclick="doLogout()">Logout</a>
+</div>
+
+<!-- ==================== PAGE: PROFILE ==================== -->
+<div id="page-profile" style="display:none;">
+  <table border="1" cellpadding="6" cellspacing="0">
+    <tr><td colspan="2" align="center"><b>Profile</b></td></tr>
+    <tr><td>ID</td><td id="prof-id"></td></tr>
+    <tr><td>NAME</td><td id="prof-name"></td></tr>
+    <tr><td>USER TYPE</td><td id="prof-type"></td></tr>
+    <tr><td colspan="2" align="right"><a href="#" onclick="goHome()">Go Home</a></td></tr>
+  </table>
+</div>
+
+<!-- ==================== PAGE: VIEW USERS (Admin only) ==================== -->
+<div id="page-view-users" style="display:none;">
+  <table border="1" cellpadding="6" cellspacing="0">
+    <tr><th colspan="3">Users</th></tr>
+    <tr><th>ID</th><th>NAME</th><th>USER TYPE</th></tr>
+    <tbody id="users-tbody"></tbody>
+    <tr><td colspan="3" align="right"><a href="#" onclick="goHome()">Go Home</a></td></tr>
+  </table>
+</div>
+
+<!-- ==================== PAGE: CHANGE PASSWORD ==================== -->
+<div id="page-change-pass" style="display:none;">
+  <fieldset>
+    <legend><b>CHANGE PASSWORD</b></legend>
+    Current Password<br>
+    <input type="password" id="cp-current"><br><br>
+    New Password<br>
+    <input type="password" id="cp-new"><br><br>
+    Retype New Password<br>
+    <input type="password" id="cp-retype"><br><br>
+    <input type="button" value="Change" onclick="doChangePassword()">
+    <input type="button" value="Home" onclick="goHome()">
+    <br><br>
+    <span id="cp-msg"></span>
+  </fieldset>
+</div>
+
+<script>
+  // ===== DATA STORE (simulates TXT file) =====
+  var STORE_KEY = 'wt_users_db';
+
+  function loadUsers() {
+    var raw = localStorage.getItem(STORE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  }
+
+  function saveUsers(users) {
+    localStorage.setItem(STORE_KEY, JSON.stringify(users));
+  }
+
+  // Seed default users
+  (function seedIfEmpty() {
+    if (loadUsers().length === 0) {
+      saveUsers([
+        { id: '15-10101-1', password: 'bob123',   name: 'Bob',   type: 'Admin' },
+        { id: '16-10102-2', password: 'anne123',  name: 'Anne',  type: 'User'  },
+        { id: '16-10103-2', password: 'kent123',  name: 'Kent',  type: 'User'  },
+        { id: '16-10104-3', password: 'james123', name: 'James', type: 'Admin' }
+      ]);
+    }
+  })();
+
+  // ===== SESSION (simulates cookie/session) =====
+  function setSession(user) {
+    sessionStorage.setItem('wt_session', JSON.stringify(user));
+  }
+  function getSession() {
+    var raw = sessionStorage.getItem('wt_session');
+    return raw ? JSON.parse(raw) : null;
+  }
+  function clearSession() {
+    sessionStorage.removeItem('wt_session');
+  }
+
+  // ===== PAGE MANAGEMENT =====
+  var pages = [
+    'page-register', 'page-login', 'page-admin-home', 'page-user-home',
+    'page-profile', 'page-view-users', 'page-change-pass'
+  ];
+  var protectedPages = ['page-admin-home','page-user-home','page-profile','page-view-users','page-change-pass'];
+
+  function showPage(pageId) {
+    // Session guard
+    if (protectedPages.indexOf(pageId) !== -1 && !getSession()) {
+      showPage('page-login');
+      return;
+    }
+    // Populate data before showing
+    if (pageId === 'page-profile') {
+      var s = getSession();
+      document.getElementById('prof-id').innerHTML   = s.id;
+      document.getElementById('prof-name').innerHTML = s.name;
+      document.getElementById('prof-type').innerHTML = s.type;
+    }
+    if (pageId === 'page-view-users') {
+      renderUsersTable();
+    }
+    if (pageId === 'page-admin-home') {
+      var s = getSession();
+      document.getElementById('admin-welcome').innerHTML = 'Welcome ' + s.name + '!';
+    }
+    if (pageId === 'page-user-home') {
+      var s = getSession();
+      document.getElementById('user-welcome').innerHTML = 'Welcome ' + s.name + '!';
+    }
+    // Hide all, show target
+    for (var i = 0; i < pages.length; i++) {
+      document.getElementById(pages[i]).style.display = 'none';
+    }
+    document.getElementById(pageId).style.display = 'block';
+    // Clear messages
+    clearMsgs();
+  }
+
+  function clearMsgs() {
+    var ids = ['reg-msg','login-msg','cp-msg'];
+    for (var i = 0; i < ids.length; i++) {
+      var el = document.getElementById(ids[i]);
+      if (el) { el.innerHTML = ''; el.style.color = 'red'; }
+    }
+  }
+
+  function goHome() {
+    var s = getSession();
+    if (!s) { showPage('page-login'); return; }
+    showPage(s.type === 'Admin' ? 'page-admin-home' : 'page-user-home');
+  }
+
+  // ===== REGISTER =====
+  function doRegister() {
+    var id      = document.getElementById('reg-id').value.trim();
+    var pass    = document.getElementById('reg-pass').value;
+    var confirm = document.getElementById('reg-confirm').value;
+    var name    = document.getElementById('reg-name').value.trim();
+    var type    = document.querySelector('input[name="reg-type"]:checked').value;
+    var msg     = document.getElementById('reg-msg');
+
+    if (!id || !pass || !confirm || !name) {
+      msg.innerHTML = 'All fields are required.'; return;
+    }
+    if (pass !== confirm) {
+      msg.innerHTML = 'Passwords do not match.'; return;
+    }
+    var users = loadUsers();
+    if (users.some(function(u){ return u.id === id; })) {
+      msg.innerHTML = 'ID already registered.'; return;
+    }
+    users.push({ id: id, password: pass, name: name, type: type });
+    saveUsers(users);
+
+    document.getElementById('reg-id').value      = '';
+    document.getElementById('reg-pass').value    = '';
+    document.getElementById('reg-confirm').value = '';
+    document.getElementById('reg-name').value    = '';
+
+    msg.style.color = 'green';
+    msg.innerHTML   = 'Registration successful! Please sign in.';
+    setTimeout(function(){ showPage('page-login'); }, 1200);
+  }
+
+  // ===== LOGIN =====
+  function doLogin() {
+    var id   = document.getElementById('login-id').value.trim();
+    var pass = document.getElementById('login-pass').value;
+    var msg  = document.getElementById('login-msg');
+
+    if (!id || !pass) {
+      msg.innerHTML = 'Please enter ID and password.'; return;
+    }
+    var users = loadUsers();
+    var user  = null;
+    for (var i = 0; i < users.length; i++) {
+      if (users[i].id === id && users[i].password === pass) { user = users[i]; break; }
+    }
+    if (!user) {
+      msg.innerHTML = 'Invalid ID or password.'; return;
+    }
+    setSession(user);
+    document.getElementById('login-id').value   = '';
+    document.getElementById('login-pass').value = '';
+    showPage(user.type === 'Admin' ? 'page-admin-home' : 'page-user-home');
+  }
+
+  // ===== LOGOUT =====
+  function doLogout() {
+    clearSession();
+    showPage('page-login');
+  }
+
+  // ===== VIEW USERS =====
+  function renderUsersTable() {
+    var users = loadUsers();
+    var html  = '';
+    for (var i = 0; i < users.length; i++) {
+      html += '<tr><td>' + users[i].id + '</td><td>' + users[i].name + '</td><td>' + users[i].type + '</td></tr>';
+    }
+    document.getElementById('users-tbody').innerHTML = html;
+  }
+
+  // ===== CHANGE PASSWORD =====
+  function doChangePassword() {
+    var current = document.getElementById('cp-current').value;
+    var newPass = document.getElementById('cp-new').value;
+    var retype  = document.getElementById('cp-retype').value;
+    var msg     = document.getElementById('cp-msg');
+    var s       = getSession();
+
+    if (!s) { doLogout(); return; }
+    if (!current || !newPass || !retype) {
+      msg.style.color = 'red'; msg.innerHTML = 'All fields are required.'; return;
+    }
+    var users = loadUsers();
+    var idx   = -1;
+    for (var i = 0; i < users.length; i++) {
+      if (users[i].id === s.id) { idx = i; break; }
+    }
+    if (idx === -1 || users[idx].password !== current) {
+      msg.style.color = 'red'; msg.innerHTML = 'Current password is incorrect.'; return;
+    }
+    if (newPass !== retype) {
+      msg.style.color = 'red'; msg.innerHTML = 'New passwords do not match.'; return;
+    }
+    users[idx].password = newPass;
+    saveUsers(users);
+    s.password = newPass;
+    setSession(s);
+
+    document.getElementById('cp-current').value = '';
+    document.getElementById('cp-new').value     = '';
+    document.getElementById('cp-retype').value  = '';
+
+    msg.style.color = 'green';
+    msg.innerHTML   = 'Password changed successfully!';
+    setTimeout(function(){ goHome(); }, 1200);
+  }
+
+  // ===== INIT: restore session =====
+  (function init() {
+    var s = getSession();
+    if (s) { goHome(); } else { showPage('page-register'); }
+  })();
+</script>
+</body>
+</html>
